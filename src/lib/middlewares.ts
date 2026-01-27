@@ -11,7 +11,7 @@ import { getAuth } from "@/lib/auth/auth.server";
 
 // ======================= Cache Control ====================== */
 export const createCacheHeaderMiddleware = (
-  strategy: "private" | "immutable" | "swr",
+  strategy: "private" | "immutable" | "swr" | "public",
 ) => {
   return createMiddleware({ type: "function" }).server(async ({ next }) => {
     const result = await next();

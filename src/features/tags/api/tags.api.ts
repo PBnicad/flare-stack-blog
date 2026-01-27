@@ -25,7 +25,7 @@ export const getTagsFn = createServerFn()
       interval: "1m",
       key: "tags:getAll",
     }),
-    createCacheHeaderMiddleware("swr"),
+    createCacheHeaderMiddleware("public"),
   ])
   .handler(async ({ context }) => {
     return await TagService.getPublicTags(context);

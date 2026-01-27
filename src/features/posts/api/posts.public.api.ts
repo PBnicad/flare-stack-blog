@@ -17,7 +17,7 @@ export const getPostsCursorFn = createServerFn()
       interval: "1m",
       key: "posts:getCursor",
     }),
-    createCacheHeaderMiddleware("swr"),
+    createCacheHeaderMiddleware("public"),
   ])
   .inputValidator(GetPostsCursorInputSchema)
   .handler(async ({ data, context }) => {
@@ -31,7 +31,7 @@ export const findPostBySlugFn = createServerFn()
       interval: "1m",
       key: "posts:findBySlug",
     }),
-    createCacheHeaderMiddleware("swr"),
+    createCacheHeaderMiddleware("public"),
   ])
   .inputValidator(FindPostBySlugInputSchema)
   .handler(async ({ data, context }) => {
@@ -45,7 +45,7 @@ export const getRelatedPostsFn = createServerFn()
       interval: "1m",
       key: "posts:getRelated",
     }),
-    createCacheHeaderMiddleware("swr"),
+    createCacheHeaderMiddleware("public"),
   ])
   .inputValidator(FindRelatedPostsInputSchema)
   .handler(async ({ data, context }) => {
