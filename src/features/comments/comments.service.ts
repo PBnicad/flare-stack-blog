@@ -12,6 +12,7 @@ import * as CommentRepo from "@/features/comments/data/comments.data";
 import * as PostService from "@/features/posts/posts.service";
 import { AdminNotificationEmail } from "@/features/email/templates/AdminNotificationEmail";
 import { convertToPlainText } from "@/features/posts/utils/content";
+import { sendReplyNotification } from "@/features/comments/workflows/helpers";
 import { serverEnv } from "@/lib/env/server.env";
 
 // ============ Public Service Methods ============
@@ -144,6 +145,25 @@ export async function createComment(
     await startCommentModerationWorkflow(context, { commentId: comment.id });
   }
 
+  // Send reply notification for admin replies (non-admin replies get notified via moderation workflow)
+  if (isAdmin && replyToCommentId) {
+    const post = await PostService.findPostById(context, {
+      id: data.postId,
+    });
+    if (post) {
+      await sendReplyNotification(context.db, context.env, {
+        comment: {
+          id: comment.id,
+          rootId: comment.rootId,
+          replyToCommentId: comment.replyToCommentId,
+          userId: comment.userId,
+          content: data.content,
+        },
+        post: { slug: post.slug, title: post.title },
+      });
+    }
+  }
+
   // Notify admin about new root comments from non-admin users only
   // - Skip if admin is commenting (no need to notify yourself)
   // - Skip if it's a reply (only root comments trigger admin notification)
@@ -257,6 +277,30 @@ export async function moderateComment(
   const updatedComment = await CommentRepo.updateComment(context.db, data.id, {
     status: data.status,
   });
+
+  // Send reply notification when manually approving a reply comment
+  // Guard: only on first approval (comment.status !== "published") to prevent duplicates
+  if (
+    data.status === "published" &&
+    comment.status !== "published" &&
+    comment.replyToCommentId
+  ) {
+    const post = await PostService.findPostById(context, {
+      id: comment.postId,
+    });
+    if (post) {
+      await sendReplyNotification(context.db, context.env, {
+        comment: {
+          id: comment.id,
+          rootId: comment.rootId,
+          replyToCommentId: comment.replyToCommentId,
+          userId: comment.userId,
+          content: comment.content,
+        },
+        post: { slug: post.slug, title: post.title },
+      });
+    }
+  }
 
   return updatedComment;
 }

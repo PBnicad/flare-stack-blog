@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import type { EmailUnsubscribeType } from "@/lib/db/schema";
 
 export function createEmailClient({ apiKey }: { apiKey: string }) {
   return new Resend(apiKey);
@@ -6,7 +7,7 @@ export function createEmailClient({ apiKey }: { apiKey: string }) {
 export async function generateUnsubscribeToken(
   secret: string,
   userId: string,
-  type: string,
+  type: EmailUnsubscribeType,
 ): Promise<string> {
   const enc = new TextEncoder();
   const key = await crypto.subtle.importKey(
@@ -30,7 +31,7 @@ export async function generateUnsubscribeToken(
 export async function verifyUnsubscribeToken(
   secret: string,
   userId: string,
-  type: string,
+  type: EmailUnsubscribeType,
   token: string,
 ): Promise<boolean> {
   const expectedToken = await generateUnsubscribeToken(secret, userId, type);

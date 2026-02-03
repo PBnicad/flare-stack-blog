@@ -4,7 +4,7 @@ import {
   fetchPost,
   invalidatePostCaches,
   upsertPostSearchIndex,
-} from "@/features/posts/workflows/workflow-helpers";
+} from "@/features/posts/workflows/helpers";
 
 interface Params {
   postId: number;

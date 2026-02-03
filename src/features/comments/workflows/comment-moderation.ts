@@ -1,16 +1,12 @@
 import { WorkflowEntrypoint } from "cloudflare:workers";
-import { renderToStaticMarkup } from "react-dom/server";
 import type { WorkflowEvent, WorkflowStep } from "cloudflare:workers";
 import * as CommentService from "@/features/comments/comments.service";
-import * as CommentRepo from "@/features/comments/data/comments.data";
 import * as AiService from "@/features/ai/ai.service";
 import * as PostService from "@/features/posts/posts.service";
-import * as EmailData from "@/features/email/data/email.data";
-import { generateUnsubscribeToken } from "@/features/email/email.utils";
-import { ReplyNotificationEmail } from "@/features/email/templates/ReplyNotificationEmail";
+import { sendReplyNotification } from "@/features/comments/workflows/helpers";
 import { getDb } from "@/lib/db";
 import { convertToPlainText } from "@/features/posts/utils/content";
-import { isNotInProduction, serverEnv } from "@/lib/env/server.env";
+import { isNotInProduction } from "@/lib/env/server.env";
 
 interface Params {
   commentId: number;
@@ -136,89 +132,16 @@ export class CommentModerationWorkflow extends WorkflowEntrypoint<Env, Params> {
     if (moderationResult.safe && comment.replyToCommentId) {
       await step.do("send reply notification", async () => {
         const db = getDb(this.env);
-
-        // Get the author of the comment being replied to
-        const replyToAuthor = await CommentRepo.getCommentAuthorWithEmail(
-          db,
-          comment.replyToCommentId!,
-        );
-
-        if (!replyToAuthor || !replyToAuthor.email) {
-          console.log(
-            `[CommentModerationWorkflow] Reply-to author not found or no email, skipping notification`,
-          );
-          return;
-        }
-
-        // Don't notify if replying to own comment
-        if (replyToAuthor.id === comment.userId) {
-          console.log(
-            `[CommentModerationWorkflow] Self-reply, skipping notification`,
-          );
-          return;
-        }
-
-        // Check for unsubscription
-        const unsubscribed = await EmailData.isUnsubscribed(
-          db,
-          replyToAuthor.id,
-          "reply_notification",
-        );
-
-        if (unsubscribed) {
-          console.log(
-            `[CommentModerationWorkflow] User ${replyToAuthor.id} unsubscribed from reply notifications, skipping`,
-          );
-          return;
-        }
-
-        // Get replier info
-        const replier = await CommentRepo.getCommentAuthorWithEmail(
-          db,
-          commentId,
-        );
-        const replierName = replier?.name ?? "有人";
-        const replyPreview = convertToPlainText(comment.content).slice(0, 100);
-
-        const { DOMAIN, BETTER_AUTH_SECRET } = serverEnv(this.env);
-        const unsubscribeType = "reply_notification";
-        const token = await generateUnsubscribeToken(
-          BETTER_AUTH_SECRET,
-          replyToAuthor.id,
-          unsubscribeType,
-        );
-        const unsubscribeUrl = `https://${DOMAIN}/unsubscribe?userId=${replyToAuthor.id}&type=${unsubscribeType}&token=${token}`;
-
-        // Build URL with comment anchor and query params for direct navigation
-        const rootId = comment.rootId ?? comment.id;
-        const commentUrl = `https://${DOMAIN}/post/${post.slug}?highlightCommentId=${comment.id}&rootId=${rootId}#comment-${comment.id}`;
-
-        const emailHtml = renderToStaticMarkup(
-          ReplyNotificationEmail({
-            postTitle: post.title,
-            replierName,
-            replyPreview: `${replyPreview}${replyPreview.length >= 100 ? "..." : ""}`,
-            commentUrl,
-            unsubscribeUrl,
-          }),
-        );
-
-        await this.env.SEND_EMAIL_WORKFLOW.create({
-          id: `notification-reply-${comment.id}`,
-          params: {
-            to: replyToAuthor.email,
-            subject: `[评论回复] ${replierName} 回复了您在《${post.title}》的评论`,
-            html: emailHtml,
-            headers: {
-              "List-Unsubscribe": `<${unsubscribeUrl}>`,
-              "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-            },
+        await sendReplyNotification(db, this.env, {
+          comment: {
+            id: comment.id,
+            rootId: comment.rootId,
+            replyToCommentId: comment.replyToCommentId,
+            userId: comment.userId,
+            content: comment.content,
           },
+          post: { slug: post.slug, title: post.title },
         });
-
-        console.log(
-          `[CommentModerationWorkflow] Reply notification sent to ${replyToAuthor.email}`,
-        );
       });
     }
   }
