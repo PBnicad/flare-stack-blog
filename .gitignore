@@ -15,4 +15,3 @@ todos.json
 drizzle
 test.http
 .secrets
-wrangler.jsonc
