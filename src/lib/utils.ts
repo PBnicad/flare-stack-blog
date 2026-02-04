@@ -8,13 +8,21 @@ export function cn(...inputs: Array<ClassValue>) {
   return twMerge(clsx(inputs));
 }
 
-export function formatDate(date: Date | undefined | null | string | number) {
+export function formatDate(
+  date: Date | undefined | null | string | number,
+  options: { includeTime?: boolean } = {},
+) {
   if (!date) return "";
   const d = new Date(date);
   return new Intl.DateTimeFormat("zh-CN", {
     year: "numeric",
     month: "long",
     day: "numeric",
+    ...(options.includeTime && {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }),
   }).format(d);
 }
 

@@ -176,12 +176,33 @@ CI/CD 会自动完成数据库迁移、构建、部署和 CDN 缓存清理。
 
 #### GitHub Secrets（可选，Umami 统计）
 
-| 变量名           | 类型   | 说明                         |
-| :--------------- | :----- | :--------------------------- |
-| `UMAMI_SRC`      | 运行时 | Umami 实例 URL               |
-| `UMAMI_API_KEY`  | 运行时 | Umami API Key（Umami Cloud） |
-| `UMAMI_USERNAME` | 运行时 | Umami 用户名（自部署）       |
-| `UMAMI_PASSWORD` | 运行时 | Umami 密码（自部署）         |
+| 变量名           | 类型   | 说明                                 |
+| :--------------- | :----- | :----------------------------------- |
+| `UMAMI_SRC`      | 运行时 | Umami 基础 URL（见下方配置说明）     |
+| `UMAMI_API_KEY`  | 运行时 | Umami Cloud API key（仅 Cloud 版本） |
+| `UMAMI_USERNAME` | 运行时 | Umami 用户名（仅自部署版本）         |
+| `UMAMI_PASSWORD` | 运行时 | Umami 密码（仅自部署版本）           |
+
+##### Umami Cloud 配置示例：
+
+```bash
+UMAMI_SRC=https://cloud.umami.is
+UMAMI_API_KEY=your-cloud-api-key
+VITE_UMAMI_WEBSITE_ID=your-website-id
+# 不需要设置 UMAMI_USERNAME 和 UMAMI_PASSWORD
+```
+
+##### 自部署 Umami 配置示例：
+
+```bash
+UMAMI_SRC=https://umami.yourdomain.com
+UMAMI_USERNAME=your-username
+UMAMI_PASSWORD=your-password
+VITE_UMAMI_WEBSITE_ID=your-website-id
+# 不需要设置 UMAMI_API_KEY
+```
+
+> **检测逻辑**：系统会自动检测 `UMAMI_API_KEY` 是否设置来判断使用 Cloud 还是自部署模式。
 
 #### GitHub Variables（可选，客户端配置）
 

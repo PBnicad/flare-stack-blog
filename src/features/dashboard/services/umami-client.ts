@@ -52,9 +52,64 @@ export class UmamiClient {
   private username?: string;
   private password?: string;
   private token: string | null = null;
+  private isCloud: boolean;
+  private apiBaseUrl: string; // For Cloud: https://api.umami.is
+
+  private static detectCloudMode(config: UmamiClientConfig): boolean {
+    return !!config.apiKey;
+  }
+
+  private static validateConfiguration(
+    config: UmamiClientConfig,
+    isCloud: boolean,
+  ): void {
+    if (isCloud) {
+      // Warn if username/password also set
+      if (config.username || config.password) {
+        console.warn(
+          "[Umami] Cloud mode detected (UMAMI_API_KEY set). " +
+            "UMAMI_USERNAME and UMAMI_PASSWORD will be ignored.",
+        );
+      }
+
+      // Warn if UMAMI_SRC doesn't look like Cloud
+      if (config.src && !config.src.includes("umami.is")) {
+        console.warn(
+          `[Umami] Cloud mode detected but UMAMI_SRC is "${config.src}". ` +
+            "Expected https://cloud.umami.is for Umami Cloud.",
+        );
+      }
+    } else {
+      // Warn if Cloud URL used without API key
+      if (config.src && config.src.includes("cloud.umami.is")) {
+        console.warn(
+          "[Umami] UMAMI_SRC points to cloud.umami.is but no UMAMI_API_KEY found. " +
+            "Umami Cloud requires an API key.",
+        );
+      }
+    }
+  }
 
   constructor(config: UmamiClientConfig) {
+    // Detect Cloud mode
+    this.isCloud = UmamiClient.detectCloudMode(config);
+
+    // Validate configuration
+    UmamiClient.validateConfiguration(config, this.isCloud);
+
+    // Set base URLs
     this.baseUrl = config.src.replace(/\/$/, "");
+
+    if (this.isCloud) {
+      // Cloud API endpoint requires /v1 prefix
+      // See: https://docs.umami.is/docs/cloud/api-key
+      // 我去，官方文档有点误导啊，文档说是 /api/websites/，但是实际是 /v1/websites/
+      this.apiBaseUrl = "https://api.umami.is/v1";
+    } else {
+      // Self-hosted uses same base for everything
+      this.apiBaseUrl = this.baseUrl;
+    }
+
     this.websiteId = config.websiteId;
     this.apiKey = config.apiKey;
     this.username = config.username;
@@ -118,9 +173,11 @@ export class UmamiClient {
     params: Record<string, string | number> = {},
   ): Promise<T | null> {
     try {
-      const url = new URL(
-        `${this.baseUrl}/api/websites/${this.websiteId}${endpoint}`,
-      );
+      // Cloud uses /v1/websites/, self-hosted uses /api/websites/
+      const path = this.isCloud
+        ? `/websites/${this.websiteId}${endpoint}`
+        : `/api/websites/${this.websiteId}${endpoint}`;
+      const url = new URL(`${this.apiBaseUrl}${path}`);
       Object.entries(params).forEach(([key, value]) => {
         url.searchParams.append(key, String(value));
       });
@@ -139,7 +196,11 @@ export class UmamiClient {
       }
 
       if (!res.ok) {
-        console.error(`Umami API error: ${res.status} ${res.statusText}`);
+        const modeLabel = this.isCloud ? "Umami Cloud" : "Umami";
+        console.error(
+          `${modeLabel} API error: ${res.status} ${res.statusText}` +
+            (this.isCloud ? " - Verify UMAMI_API_KEY is valid" : ""),
+        );
         return null;
       }
 
@@ -201,5 +262,9 @@ export class UmamiClient {
       limit,
       ...filters,
     });
+  }
+
+  public get isUmamiCloud(): boolean {
+    return this.isCloud;
   }
 }

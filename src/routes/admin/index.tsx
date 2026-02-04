@@ -17,6 +17,7 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import { z } from "zod";
+import { toast } from "sonner";
 import type {
   ActivityLogItem,
   DashboardRange,
@@ -68,6 +69,10 @@ function DashboardOverview() {
     mutationFn: refreshDashboardCacheFn,
     onSuccess: () => {
       queryClient.invalidateQueries(dashboardStatsQuery);
+      toast.success("数据已刷新");
+    },
+    onError: () => {
+      toast.error("刷新失败，请重试");
     },
   });
 

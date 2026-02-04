@@ -103,7 +103,7 @@ export const CommentItem = memo(
               )}
             </div>
             <span className="text-[9px] font-mono text-muted-foreground/30 uppercase tracking-widest">
-              {formatDate(comment.createdAt)}
+              {formatDate(comment.createdAt, { includeTime: true })}
             </span>
           </div>
 

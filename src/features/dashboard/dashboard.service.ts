@@ -219,8 +219,6 @@ export async function getDashboardStats(
   const umamiSrc = env.UMAMI_SRC;
 
   if (umamiWebsiteId && umamiSrc) {
-    umamiUrl = `${umamiSrc.replace(/\/$/, "")}/websites/${umamiWebsiteId}`;
-
     const umami = new UmamiClient({
       websiteId: umamiWebsiteId,
       src: umamiSrc,
@@ -228,6 +226,11 @@ export async function getDashboardStats(
       username: env.UMAMI_USERNAME,
       password: env.UMAMI_PASSWORD,
     });
+
+    // Construct dashboard URL based on mode
+    umamiUrl = umami.isUmamiCloud
+      ? `https://cloud.umami.is/analytics/us/websites/${umamiWebsiteId}`
+      : `${umamiSrc.replace(/\/$/, "")}/websites/${umamiWebsiteId}`;
 
     // Fetcher for all ranges data - cached as a single unit
     const fetcher = async () => {
