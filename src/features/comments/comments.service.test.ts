@@ -8,6 +8,7 @@ import {
 } from "tests/test-utils";
 import * as CommentService from "@/features/comments/comments.service";
 import * as PostService from "@/features/posts/posts.service";
+import { unwrap } from "@/lib/error";
 
 describe("CommentService", () => {
   let adminContext: ReturnType<typeof createAdminTestContext>;
@@ -59,10 +60,12 @@ describe("CommentService", () => {
 
   describe("Comment Creation", () => {
     it("should create a comment with verifying status", async () => {
-      const comment = await CommentService.createComment(userContext, {
-        postId,
-        content: createCommentContent("Great post!"),
-      });
+      const comment = unwrap(
+        await CommentService.createComment(userContext, {
+          postId,
+          content: createCommentContent("Great post!"),
+        }),
+      );
 
       expect(comment.status).toBe("verifying");
       expect(comment.userId).toBe("user-1");
@@ -70,10 +73,12 @@ describe("CommentService", () => {
     });
 
     it("should trigger moderation workflow on creation", async () => {
-      const comment = await CommentService.createComment(userContext, {
-        postId,
-        content: createCommentContent("Nice article!"),
-      });
+      const comment = unwrap(
+        await CommentService.createComment(userContext, {
+          postId,
+          content: createCommentContent("Nice article!"),
+        }),
+      );
 
       expect(
         userContext.env.COMMENT_MODERATION_WORKFLOW.create,
@@ -83,30 +88,34 @@ describe("CommentService", () => {
     });
 
     it("should create a reply to an existing comment", async () => {
-      // Create parent comment
-      const parentComment = await CommentService.createComment(userContext, {
-        postId,
-        content: createCommentContent("Parent comment"),
-      });
+      const parent = unwrap(
+        await CommentService.createComment(userContext, {
+          postId,
+          content: createCommentContent("Parent comment"),
+        }),
+      );
 
-      // Create reply
-      const reply = await CommentService.createComment(userContext, {
-        postId,
-        content: createCommentContent("Reply to parent"),
-        rootId: parentComment.id,
-      });
+      const reply = unwrap(
+        await CommentService.createComment(userContext, {
+          postId,
+          content: createCommentContent("Reply to parent"),
+          rootId: parent.id,
+        }),
+      );
 
-      expect(reply.rootId).toBe(parentComment.id);
-      expect(reply.replyToCommentId).toBe(parentComment.id);
+      expect(reply.rootId).toBe(parent.id);
+      expect(reply.replyToCommentId).toBe(parent.id);
     });
   });
 
   describe("Comment Moderation", () => {
     it("should allow admin to publish a comment", async () => {
-      const comment = await CommentService.createComment(userContext, {
-        postId,
-        content: createCommentContent("Awaiting moderation"),
-      });
+      const comment = unwrap(
+        await CommentService.createComment(userContext, {
+          postId,
+          content: createCommentContent("Awaiting moderation"),
+        }),
+      );
 
       const moderatedComment = await CommentService.moderateComment(
         adminContext,
@@ -120,10 +129,12 @@ describe("CommentService", () => {
     });
 
     it("should allow admin to mark a comment as pending", async () => {
-      const comment = await CommentService.createComment(userContext, {
-        postId,
-        content: createCommentContent("Needs review"),
-      });
+      const comment = unwrap(
+        await CommentService.createComment(userContext, {
+          postId,
+          content: createCommentContent("Needs review"),
+        }),
+      );
 
       // First publish the comment
       await CommentService.moderateComment(adminContext, {
@@ -146,12 +157,16 @@ describe("CommentService", () => {
 
   describe("Comment Deletion", () => {
     it("should allow user to soft delete their own comment", async () => {
-      const comment = await CommentService.createComment(userContext, {
-        postId,
-        content: createCommentContent("My comment"),
-      });
+      const comment = unwrap(
+        await CommentService.createComment(userContext, {
+          postId,
+          content: createCommentContent("My comment"),
+        }),
+      );
 
-      await CommentService.deleteComment(userContext, { id: comment.id });
+      await CommentService.deleteComment(userContext, {
+        id: comment.id,
+      });
 
       const deletedComment = await CommentService.findCommentById(
         userContext,
@@ -161,10 +176,12 @@ describe("CommentService", () => {
     });
 
     it("should prevent user from deleting another user's comment", async () => {
-      const comment = await CommentService.createComment(userContext, {
-        postId,
-        content: createCommentContent("User 1's comment"),
-      });
+      const comment = unwrap(
+        await CommentService.createComment(userContext, {
+          postId,
+          content: createCommentContent("User 1's comment"),
+        }),
+      );
 
       // Create another user context
       const otherUserSession = createMockSession({
@@ -181,15 +198,19 @@ describe("CommentService", () => {
       await seedUser(otherUserContext.db, otherUserSession.user);
 
       await expect(
-        CommentService.deleteComment(otherUserContext, { id: comment.id }),
+        CommentService.deleteComment(otherUserContext, {
+          id: comment.id,
+        }),
       ).rejects.toThrow("PERMISSION_DENIED");
     });
 
     it("should allow admin to hard delete any comment", async () => {
-      const comment = await CommentService.createComment(userContext, {
-        postId,
-        content: createCommentContent("To be hard deleted"),
-      });
+      const comment = unwrap(
+        await CommentService.createComment(userContext, {
+          postId,
+          content: createCommentContent("To be hard deleted"),
+        }),
+      );
 
       await CommentService.adminDeleteComment(adminContext, {
         id: comment.id,
@@ -205,24 +226,25 @@ describe("CommentService", () => {
 
   describe("Public Comment Queries", () => {
     it("should get root comments by post ID with reply counts", async () => {
-      // Create root comment
-      const rootComment = await CommentService.createComment(userContext, {
-        postId,
-        content: createCommentContent("Root comment"),
-      });
+      const root = unwrap(
+        await CommentService.createComment(userContext, {
+          postId,
+          content: createCommentContent("Root comment"),
+        }),
+      );
 
-      // Publish it so it's visible
       await CommentService.moderateComment(adminContext, {
-        id: rootComment.id,
+        id: root.id,
         status: "published",
       });
 
-      // Create a reply
-      const reply = await CommentService.createComment(userContext, {
-        postId,
-        content: createCommentContent("Reply"),
-        rootId: rootComment.id,
-      });
+      const reply = unwrap(
+        await CommentService.createComment(userContext, {
+          postId,
+          content: createCommentContent("Reply"),
+          rootId: root.id,
+        }),
+      );
       await CommentService.moderateComment(adminContext, {
         id: reply.id,
         status: "published",
@@ -233,29 +255,32 @@ describe("CommentService", () => {
       });
 
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].id).toBe(rootComment.id);
+      expect(result.items[0].id).toBe(root.id);
       expect(result.items[0].replyCount).toBe(1);
       expect(result.total).toBe(1);
     });
 
     it("should get replies by root ID with pagination", async () => {
-      // Create root comment
-      const rootComment = await CommentService.createComment(userContext, {
-        postId,
-        content: createCommentContent("Root"),
-      });
+      const root = unwrap(
+        await CommentService.createComment(userContext, {
+          postId,
+          content: createCommentContent("Root"),
+        }),
+      );
       await CommentService.moderateComment(adminContext, {
-        id: rootComment.id,
+        id: root.id,
         status: "published",
       });
 
       // Create 3 replies
       for (let i = 1; i <= 3; i++) {
-        const reply = await CommentService.createComment(userContext, {
-          postId,
-          content: createCommentContent(`Reply ${i}`),
-          rootId: rootComment.id,
-        });
+        const reply = unwrap(
+          await CommentService.createComment(userContext, {
+            postId,
+            content: createCommentContent(`Reply ${i}`),
+            rootId: root.id,
+          }),
+        );
         await CommentService.moderateComment(adminContext, {
           id: reply.id,
           status: "published",
@@ -265,7 +290,7 @@ describe("CommentService", () => {
       // Get first page
       const page1 = await CommentService.getRepliesByRootId(userContext, {
         postId,
-        rootId: rootComment.id,
+        rootId: root.id,
         limit: 2,
       });
 
@@ -275,7 +300,7 @@ describe("CommentService", () => {
       // Get second page
       const page2 = await CommentService.getRepliesByRootId(userContext, {
         postId,
-        rootId: rootComment.id,
+        rootId: root.id,
         limit: 2,
         offset: 2,
       });
@@ -284,11 +309,12 @@ describe("CommentService", () => {
     });
 
     it("should include viewer's pending comments when viewerId provided", async () => {
-      // Create a comment that stays in verifying status
-      const comment = await CommentService.createComment(userContext, {
-        postId,
-        content: createCommentContent("My pending comment"),
-      });
+      const comment = unwrap(
+        await CommentService.createComment(userContext, {
+          postId,
+          content: createCommentContent("My pending comment"),
+        }),
+      );
 
       // Without viewerId - should not see verifying comments
       const resultWithoutViewer = await CommentService.getRootCommentsByPostId(
@@ -313,41 +339,43 @@ describe("CommentService", () => {
   });
 
   describe("Comment Validation - Edge Cases", () => {
-    it("should throw ROOT_COMMENT_NOT_FOUND when replying to non-existent root", async () => {
-      await expect(
-        CommentService.createComment(userContext, {
-          postId,
-          content: createCommentContent("Reply to nothing"),
-          rootId: 999999,
-        }),
-      ).rejects.toThrow("ROOT_COMMENT_NOT_FOUND");
+    it("should return ROOT_COMMENT_NOT_FOUND when replying to non-existent root", async () => {
+      const result = await CommentService.createComment(userContext, {
+        postId,
+        content: createCommentContent("Reply to nothing"),
+        rootId: 999999,
+      });
+
+      expect(result.error?.reason).toBe("ROOT_COMMENT_NOT_FOUND");
     });
 
-    it("should throw INVALID_ROOT_ID when rootId is itself a reply", async () => {
-      // Create a root comment
-      const root = await CommentService.createComment(userContext, {
-        postId,
-        content: createCommentContent("Root"),
-      });
+    it("should return INVALID_ROOT_ID when rootId is itself a reply", async () => {
+      const root = unwrap(
+        await CommentService.createComment(userContext, {
+          postId,
+          content: createCommentContent("Root"),
+        }),
+      );
 
-      // Create a reply to the root
-      const reply = await CommentService.createComment(userContext, {
-        postId,
-        content: createCommentContent("Reply"),
-        rootId: root.id,
-      });
+      const reply = unwrap(
+        await CommentService.createComment(userContext, {
+          postId,
+          content: createCommentContent("Reply"),
+          rootId: root.id,
+        }),
+      );
 
       // Try to use the reply as a root (should fail)
-      await expect(
-        CommentService.createComment(userContext, {
-          postId,
-          content: createCommentContent("Nested reply"),
-          rootId: reply.id,
-        }),
-      ).rejects.toThrow("INVALID_ROOT_ID");
+      const result = await CommentService.createComment(userContext, {
+        postId,
+        content: createCommentContent("Nested reply"),
+        rootId: reply.id,
+      });
+
+      expect(result.error?.reason).toBe("INVALID_ROOT_ID");
     });
 
-    it("should throw ROOT_COMMENT_POST_MISMATCH when root belongs to different post", async () => {
+    it("should return ROOT_COMMENT_POST_MISMATCH when root belongs to different post", async () => {
       // Create another post
       const { id: otherPostId } =
         await PostService.createEmptyPost(adminContext);
@@ -360,63 +388,69 @@ describe("CommentService", () => {
         },
       });
 
-      // Create a comment on the other post
-      const otherPostComment = await CommentService.createComment(userContext, {
-        postId: otherPostId,
-        content: createCommentContent("Comment on other post"),
-      });
+      const otherPostComment = unwrap(
+        await CommentService.createComment(userContext, {
+          postId: otherPostId,
+          content: createCommentContent("Comment on other post"),
+        }),
+      );
 
       // Try to reply to it from a different post
-      await expect(
-        CommentService.createComment(userContext, {
-          postId,
-          content: createCommentContent("Cross-post reply"),
-          rootId: otherPostComment.id,
-        }),
-      ).rejects.toThrow("ROOT_COMMENT_POST_MISMATCH");
-    });
-
-    it("should throw REPLY_TO_COMMENT_NOT_FOUND when replyToCommentId invalid", async () => {
-      const root = await CommentService.createComment(userContext, {
+      const result = await CommentService.createComment(userContext, {
         postId,
-        content: createCommentContent("Root"),
+        content: createCommentContent("Cross-post reply"),
+        rootId: otherPostComment.id,
       });
 
-      await expect(
-        CommentService.createComment(userContext, {
-          postId,
-          content: createCommentContent("Reply to invalid"),
-          rootId: root.id,
-          replyToCommentId: 999999,
-        }),
-      ).rejects.toThrow("REPLY_TO_COMMENT_NOT_FOUND");
+      expect(result.error?.reason).toBe("ROOT_COMMENT_POST_MISMATCH");
     });
 
-    it("should throw ROOT_COMMENT_CANNOT_HAVE_REPLY_TO when creating root with replyToCommentId", async () => {
-      const existingComment = await CommentService.createComment(userContext, {
+    it("should return REPLY_TO_COMMENT_NOT_FOUND when replyToCommentId invalid", async () => {
+      const root = unwrap(
+        await CommentService.createComment(userContext, {
+          postId,
+          content: createCommentContent("Root"),
+        }),
+      );
+
+      const result = await CommentService.createComment(userContext, {
         postId,
-        content: createCommentContent("Existing"),
+        content: createCommentContent("Reply to invalid"),
+        rootId: root.id,
+        replyToCommentId: 999999,
       });
+
+      expect(result.error?.reason).toBe("REPLY_TO_COMMENT_NOT_FOUND");
+    });
+
+    it("should return ROOT_COMMENT_CANNOT_HAVE_REPLY_TO when creating root with replyToCommentId", async () => {
+      const existing = unwrap(
+        await CommentService.createComment(userContext, {
+          postId,
+          content: createCommentContent("Existing"),
+        }),
+      );
 
       // Try to create a root comment (no rootId) but with replyToCommentId
-      await expect(
-        CommentService.createComment(userContext, {
-          postId,
-          content: createCommentContent("Invalid root"),
-          replyToCommentId: existingComment.id,
-        }),
-      ).rejects.toThrow("ROOT_COMMENT_CANNOT_HAVE_REPLY_TO");
+      const result = await CommentService.createComment(userContext, {
+        postId,
+        content: createCommentContent("Invalid root"),
+        replyToCommentId: existing.id,
+      });
+
+      expect(result.error?.reason).toBe("ROOT_COMMENT_CANNOT_HAVE_REPLY_TO");
     });
   });
 
   describe("Admin Comment Behavior", () => {
     it("admin comments should be published immediately (skip moderation)", async () => {
-      const comment = await CommentService.createComment(adminContext, {
-        postId,
-        content: createCommentContent("Admin comment"),
-      });
+      const comment = unwrap(
+        await CommentService.createComment(adminContext, {
+          postId,
+          content: createCommentContent("Admin comment"),
+        }),
+      );
 
-      // Admin comments are published immediately
       expect(comment.status).toBe("published");
 
       // Moderation workflow should NOT be triggered for admin
@@ -443,11 +477,12 @@ describe("CommentService", () => {
     });
 
     it("should trigger SEND_EMAIL_WORKFLOW when admin replies to a user comment", async () => {
-      // Create a user's root comment (published by admin)
-      const rootComment = await CommentService.createComment(userContext, {
-        postId,
-        content: createCommentContent("User's comment"),
-      });
+      const rootComment = unwrap(
+        await CommentService.createComment(userContext, {
+          postId,
+          content: createCommentContent("User's comment"),
+        }),
+      );
       await CommentService.moderateComment(adminContext, {
         id: rootComment.id,
         status: "published",
@@ -476,11 +511,12 @@ describe("CommentService", () => {
     });
 
     it("should not trigger reply notification when admin replies to own comment", async () => {
-      // Admin creates a root comment
-      const rootComment = await CommentService.createComment(adminContext, {
-        postId,
-        content: createCommentContent("Admin's root comment"),
-      });
+      const rootComment = unwrap(
+        await CommentService.createComment(adminContext, {
+          postId,
+          content: createCommentContent("Admin's root comment"),
+        }),
+      );
 
       // Clear mocks
       vi.mocked(adminContext.env.SEND_EMAIL_WORKFLOW.create).mockClear();
@@ -500,19 +536,22 @@ describe("CommentService", () => {
     });
 
     it("should trigger reply notification when manually approving a reply comment", async () => {
-      // Admin creates a root comment
-      const rootComment = await CommentService.createComment(adminContext, {
-        postId,
-        content: createCommentContent("Admin's root comment"),
-      });
+      const rootComment = unwrap(
+        await CommentService.createComment(adminContext, {
+          postId,
+          content: createCommentContent("Admin's root comment"),
+        }),
+      );
 
       // User creates a reply (goes to verifying status)
-      const reply = await CommentService.createComment(userContext, {
-        postId,
-        content: createCommentContent("User reply to admin"),
-        rootId: rootComment.id,
-        replyToCommentId: rootComment.id,
-      });
+      const reply = unwrap(
+        await CommentService.createComment(userContext, {
+          postId,
+          content: createCommentContent("User reply to admin"),
+          rootId: rootComment.id,
+          replyToCommentId: rootComment.id,
+        }),
+      );
 
       // Clear mocks to isolate the moderation notification
       vi.mocked(adminContext.env.SEND_EMAIL_WORKFLOW.create).mockClear();
@@ -535,20 +574,23 @@ describe("CommentService", () => {
     });
 
     it("should get all comments with admin filters", async () => {
-      // Create comments with different statuses
-      const comment1 = await CommentService.createComment(userContext, {
-        postId,
-        content: createCommentContent("Pending comment"),
-      });
+      const comment1 = unwrap(
+        await CommentService.createComment(userContext, {
+          postId,
+          content: createCommentContent("Pending comment"),
+        }),
+      );
       await CommentService.moderateComment(adminContext, {
         id: comment1.id,
         status: "pending",
       });
 
-      const comment2 = await CommentService.createComment(userContext, {
-        postId,
-        content: createCommentContent("Published comment"),
-      });
+      const comment2 = unwrap(
+        await CommentService.createComment(userContext, {
+          postId,
+          content: createCommentContent("Published comment"),
+        }),
+      );
       await CommentService.moderateComment(adminContext, {
         id: comment2.id,
         status: "published",
@@ -568,18 +610,21 @@ describe("CommentService", () => {
     });
 
     it("should get user comment stats", async () => {
-      // Create some comments
-      const comment1 = await CommentService.createComment(userContext, {
-        postId,
-        content: createCommentContent("Comment 1"),
-      });
+      const comment1 = unwrap(
+        await CommentService.createComment(userContext, {
+          postId,
+          content: createCommentContent("Comment 1"),
+        }),
+      );
       await CommentService.createComment(userContext, {
         postId,
         content: createCommentContent("Comment 2"),
       });
 
       // Delete one
-      await CommentService.deleteComment(userContext, { id: comment1.id });
+      await CommentService.deleteComment(userContext, {
+        id: comment1.id,
+      });
 
       const stats = await CommentService.getUserCommentStats(
         adminContext,

@@ -3,7 +3,6 @@ import { Radio } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { PostEditorData } from "@/features/posts/components/post-editor/types";
-import type { JSONContent } from "@tiptap/react";
 import type { Tag } from "@/features/tags/tags.schema";
 import {
   generateSlugFn,
@@ -11,7 +10,7 @@ import {
   startPostProcessWorkflowFn,
 } from "@/features/posts/api/posts.admin.api";
 import { useDebounce } from "@/hooks/use-debounce";
-import { slugify } from "@/features/posts/utils/content";
+import { convertToPlainText, slugify } from "@/features/posts/utils/content";
 import { createTagFn, generateTagsFn } from "@/features/tags/api/tags.api";
 import { TAGS_KEYS } from "@/features/tags/queries";
 
@@ -33,6 +32,23 @@ export function usePostActions({
   allTags,
 }: UsePostActionsOptions) {
   const queryClient = useQueryClient();
+
+  const contentStats = useMemo(() => {
+    const text = convertToPlainText(post.contentJson);
+    const chars = text.replace(/\n/g, "").length;
+    const cjkChars = (
+      text.match(
+        /[\u4E00-\u9FFF\u3400-\u4DBF\u3040-\u309F\u30A0-\u30FF\uAC00-\uD7AF]/g,
+      ) || []
+    ).length;
+    const textWithoutCjk = text.replace(
+      /[\u4E00-\u9FFF\u3400-\u4DBF\u3040-\u309F\u30A0-\u30FF\uAC00-\uD7AF]/g,
+      " ",
+    );
+    const englishWords = textWithoutCjk.split(/\s+/).filter(Boolean).length;
+    return { chars, words: cjkChars + englishWords, cjkChars, englishWords };
+  }, [post.contentJson]);
+
   const [isCalculatingReadTime, setIsCalculatingReadTime] = useState(false);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [isGeneratingTags, setIsGeneratingTags] = useState(false);
@@ -207,32 +223,7 @@ export function usePostActions({
     setIsCalculatingReadTime(true);
 
     setTimeout(() => {
-      const extractText = (node: JSONContent): string => {
-        let text = "";
-        if (node.text) text += node.text;
-        if (node.content) {
-          for (const child of node.content) {
-            text += `${extractText(child)} `;
-          }
-        }
-        return text;
-      };
-
-      const text = extractText(post.contentJson!);
-
-      // Count CJK characters (Chinese, Japanese, Korean)
-      const cjkChars = (
-        text.match(
-          /[\u4E00-\u9FFF\u3400-\u4DBF\u3040-\u309F\u30A0-\u30FF\uAC00-\uD7AF]/g,
-        ) || []
-      ).length;
-
-      // Count English words (remove CJK chars first, then split by whitespace)
-      const textWithoutCjk = text.replace(
-        /[\u4E00-\u9FFF\u3400-\u4DBF\u3040-\u309F\u30A0-\u30FF\uAC00-\uD7AF]/g,
-        " ",
-      );
-      const englishWords = textWithoutCjk.split(/\s+/).filter(Boolean).length;
+      const { cjkChars, englishWords, words } = contentStats;
 
       // Reading speed: ~400 CJK chars/min, ~200 English words/min
       const cjkMinutes = cjkChars / 400;
@@ -244,9 +235,7 @@ export function usePostActions({
 
       if (!silent) {
         toast.success("阅读时间计算完成", {
-          description: `预计阅读时间 ${mins} 分钟 (${
-            cjkChars + englishWords
-          } 字)`,
+          description: `预计阅读时间 ${mins} 分钟 (${words} 字)`,
         });
       }
     }, 400);
@@ -331,10 +320,22 @@ export function usePostActions({
             currentTagIds.add(existingTag.id);
           }
         } else {
-          // Create new tag
-          const newTag = await createTagFn({ data: { name } });
-          newTagIds.push(newTag.id);
-          currentTagIds.add(newTag.id);
+          const result = await createTagFn({ data: { name } });
+          if (result.error) {
+            const reason = result.error.reason;
+            switch (reason) {
+              // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+              case "TAG_NAME_ALREADY_EXISTS":
+                // 重名时跳过，不中断流程
+                continue;
+              default: {
+                reason satisfies never;
+                throw new Error("未知错误");
+              }
+            }
+          }
+          newTagIds.push(result.data.id);
+          currentTagIds.add(result.data.id);
         }
       }
 
@@ -378,5 +379,6 @@ export function usePostActions({
     isGeneratingTags,
     handleGenerateTags,
     isDirty,
+    contentStats,
   };
 }

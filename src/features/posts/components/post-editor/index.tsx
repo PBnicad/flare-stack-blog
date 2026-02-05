@@ -13,6 +13,7 @@ import { Editor } from "@/components/tiptap-editor";
 import { Button } from "@/components/ui/button";
 import ConfirmationModal from "@/components/ui/confirmation-modal";
 import DatePicker from "@/components/ui/date-picker";
+import { toLocalDateString } from "@/lib/utils";
 
 import { Input } from "@/components/ui/input";
 import { POST_STATUSES } from "@/lib/db/schema";
@@ -85,6 +86,7 @@ export function PostEditor({ initialData, onSave }: PostEditorProps) {
     isGeneratingTags,
     handleGenerateTags,
     isDirty: isPostDirty,
+    contentStats,
   } = usePostActions({
     postId: initialData.id,
     post,
@@ -224,13 +226,13 @@ export function PostEditor({ initialData, onSave }: PostEditorProps) {
                   <DatePicker
                     value={
                       post.publishedAt
-                        ? post.publishedAt.toISOString().split("T")[0]
+                        ? toLocalDateString(post.publishedAt)
                         : ""
                     }
                     onChange={(dateStr) =>
                       handlePostChange({
                         publishedAt: dateStr
-                          ? new Date(`${dateStr}T00:00:00`)
+                          ? new Date(`${dateStr}T12:00:00Z`)
                           : null,
                       })
                     }
@@ -383,15 +385,11 @@ export function PostEditor({ initialData, onSave }: PostEditorProps) {
         <div className="flex items-center gap-6 text-muted-foreground">
           <div className="flex items-center gap-2">
             <span>字符</span>
-            <span className="text-foreground">
-              {JSON.stringify(post.contentJson || "").length}
-            </span>
+            <span className="text-foreground">{contentStats.chars}</span>
           </div>
           <div className="flex items-center gap-2">
             <span>词数</span>
-            <span className="text-foreground">
-              {Math.ceil(JSON.stringify(post.contentJson || "").length / 5)}
-            </span>
+            <span className="text-foreground">{contentStats.words}</span>
           </div>
         </div>
 

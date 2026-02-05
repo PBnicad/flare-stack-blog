@@ -11,7 +11,27 @@ export function useComments(postId?: number) {
   const queryClient = useQueryClient();
 
   const createCommentMutation = useMutation({
-    mutationFn: createCommentFn,
+    mutationFn: async (input: Parameters<typeof createCommentFn>[0]) => {
+      const result = await createCommentFn(input);
+      if (result.error) {
+        const reason = result.error.reason;
+        switch (reason) {
+          case "ROOT_COMMENT_NOT_FOUND":
+          case "REPLY_TO_COMMENT_NOT_FOUND":
+            throw new Error("该评论已被删除，请刷新页面");
+          case "INVALID_ROOT_ID":
+          case "ROOT_COMMENT_POST_MISMATCH":
+          case "REPLY_TO_COMMENT_ROOT_MISMATCH":
+          case "ROOT_COMMENT_CANNOT_HAVE_REPLY_TO":
+            throw new Error("评论结构异常，请刷新页面重试");
+          default: {
+            reason satisfies never;
+            throw new Error("未知错误");
+          }
+        }
+      }
+      return result.data;
+    },
     onSuccess: () => {
       // Invalidate both root comments and all replies queries for this post
       if (postId) {
@@ -24,7 +44,7 @@ export function useComments(postId?: number) {
           exact: false,
         });
       }
-      // NEW: Also invalidate admin view queries
+      // Also invalidate admin view queries
       queryClient.invalidateQueries({
         queryKey: COMMENTS_KEYS.admin,
         exact: false,
@@ -36,7 +56,7 @@ export function useComments(postId?: number) {
       });
     },
     onError: (error) => {
-      toast.error("评论提交失败: " + error.message);
+      toast.error(error.message);
     },
   });
 

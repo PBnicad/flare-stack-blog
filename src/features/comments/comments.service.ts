@@ -14,6 +14,7 @@ import { AdminNotificationEmail } from "@/features/email/templates/AdminNotifica
 import { convertToPlainText } from "@/features/posts/utils/content";
 import { sendReplyNotification } from "@/features/comments/workflows/helpers";
 import { serverEnv } from "@/lib/env/server.env";
+import { err, ok } from "@/lib/error";
 
 // ============ Public Service Methods ============
 
@@ -92,13 +93,13 @@ export async function createComment(
       data.rootId,
     );
     if (!rootComment) {
-      throw new Error("ROOT_COMMENT_NOT_FOUND");
+      return err({ reason: "ROOT_COMMENT_NOT_FOUND" });
     }
     if (rootComment.rootId !== null) {
-      throw new Error("INVALID_ROOT_ID");
+      return err({ reason: "INVALID_ROOT_ID" });
     }
     if (rootComment.postId !== data.postId) {
-      throw new Error("ROOT_COMMENT_POST_MISMATCH");
+      return err({ reason: "ROOT_COMMENT_POST_MISMATCH" });
     }
     rootId = data.rootId;
 
@@ -109,12 +110,12 @@ export async function createComment(
         data.replyToCommentId,
       );
       if (!replyToComment) {
-        throw new Error("REPLY_TO_COMMENT_NOT_FOUND");
+        return err({ reason: "REPLY_TO_COMMENT_NOT_FOUND" });
       }
       // replyToComment must be either the root or a reply under the same root
       const actualRootId = replyToComment.rootId ?? replyToComment.id;
       if (actualRootId !== rootId) {
-        throw new Error("REPLY_TO_COMMENT_ROOT_MISMATCH");
+        return err({ reason: "REPLY_TO_COMMENT_ROOT_MISMATCH" });
       }
       replyToCommentId = data.replyToCommentId;
     } else {
@@ -124,7 +125,7 @@ export async function createComment(
   } else {
     // Creating a root comment - ensure no replyToCommentId
     if (data.replyToCommentId) {
-      throw new Error("ROOT_COMMENT_CANNOT_HAVE_REPLY_TO");
+      return err({ reason: "ROOT_COMMENT_CANNOT_HAVE_REPLY_TO" });
     }
   }
 
@@ -194,7 +195,7 @@ export async function createComment(
     }
   }
 
-  return comment;
+  return ok(comment);
 }
 
 export async function deleteComment(
