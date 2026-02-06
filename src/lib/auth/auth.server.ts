@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { betterAuth } from "better-auth/minimal";
 import { AuthEmail } from "@/features/email/templates/AuthEmail";
+import { hashPassword, verifyPassword } from "@/lib/auth/auth.helpers";
 import { authConfig } from "@/lib/auth/auth.config";
 import * as authSchema from "@/lib/db/schema/auth.schema";
 import { serverEnv } from "@/lib/env/server.env";
@@ -35,6 +36,10 @@ function createAuth({ db, env }: { db: DB; env: Env }) {
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: true,
+      password: {
+        hash: hashPassword,
+        verify: verifyPassword,
+      },
       sendResetPassword: async ({ user, url }) => {
         const emailHtml = renderToStaticMarkup(
           AuthEmail({ type: "reset-password", url }),
