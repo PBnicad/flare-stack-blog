@@ -32,8 +32,11 @@ export function RegisterForm() {
   const [isSuccess, setIsSuccess] = React.useState(false);
   const previousLocation = usePreviousLocation();
   const queryClient = useQueryClient();
-  const { isPending: turnstilePending, turnstileProps } =
-    useTurnstile("register");
+  const {
+    isPending: turnstilePending,
+    token: turnstileToken,
+    turnstileProps,
+  } = useTurnstile("register");
 
   const {
     register,
@@ -49,6 +52,9 @@ export function RegisterForm() {
       password: data.password,
       name: data.name,
       callbackURL: `${window.location.origin}/verify-email`,
+      fetchOptions: {
+        headers: { "X-Turnstile-Token": turnstileToken || "" },
+      },
     });
 
     if (error) {

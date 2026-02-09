@@ -29,7 +29,11 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
   const navigate = useNavigate();
   const previousLocation = usePreviousLocation();
   const queryClient = useQueryClient();
-  const { isPending: turnstilePending, turnstileProps } = useTurnstile("login");
+  const {
+    isPending: turnstilePending,
+    token: turnstileToken,
+    turnstileProps,
+  } = useTurnstile("login");
 
   const {
     register,
@@ -50,16 +54,32 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
     const { error } = await authClient.signIn.email({
       email: data.email,
       password: data.password,
+      fetchOptions: {
+        headers: { "X-Turnstile-Token": turnstileToken || "" },
+      },
     });
 
     if (error) {
       setLoginStep("IDLE");
-      if (error.status === 403) {
-        setError("root", { message: "邮箱尚未验证" });
-        setIsUnverifiedEmail(true);
-      } else {
-        setError("root", { message: "无效的账号或密码" });
+
+      // Map error codes to user-friendly messages
+      switch (error.code as keyof typeof authClient.$ERROR_CODES | undefined) {
+        case "EMAIL_NOT_VERIFIED":
+          setError("root", { message: "邮箱尚未验证" });
+          setIsUnverifiedEmail(true);
+          break;
+        case "INVALID_EMAIL_OR_PASSWORD":
+          setError("root", { message: "无效的账号或密码" });
+          break;
+        default:
+          // Fallback: check message for Turnstile errors or use generic message
+          if (error.message?.includes("Turnstile")) {
+            setError("root", { message: "人机验证失败，请刷新页面重试" });
+          } else {
+            setError("root", { message: error.message || "登录失败" });
+          }
       }
+
       toast.error("登录失败", { description: error.message });
       return;
     }

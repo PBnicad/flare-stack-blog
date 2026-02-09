@@ -181,14 +181,15 @@ CI/CD 会自动完成数据库迁移、构建、部署和 CDN 缓存清理。
 > - **CI/CD**：仅用于 GitHub Actions 构建部署，方式二用户无需配置
 > - **运行时**：Worker 运行时使用，方式二用户在 Worker Settings 中配置
 
-#### GitHub Secrets（可选，Umami 统计）
+#### GitHub Secrets（可选）
 
-| 变量名           | 类型   | 说明                                 |
-| :--------------- | :----- | :----------------------------------- |
-| `UMAMI_SRC`      | 运行时 | Umami 基础 URL（见下方配置说明）     |
-| `UMAMI_API_KEY`  | 运行时 | Umami Cloud API key（仅 Cloud 版本） |
-| `UMAMI_USERNAME` | 运行时 | Umami 用户名（仅自部署版本）         |
-| `UMAMI_PASSWORD` | 运行时 | Umami 密码（仅自部署版本）           |
+| 变量名                 | 类型   | 说明                                                                                                             |
+| :--------------------- | :----- | :--------------------------------------------------------------------------------------------------------------- |
+| `TURNSTILE_SECRET_KEY` | 运行时 | Turnstile Secret Key，可在 [Cloudflare Dashboard](https://developers.cloudflare.com/turnstile/get-started/) 获取 |
+| `UMAMI_SRC`            | 运行时 | Umami 基础 URL（见下方配置说明）                                                                                 |
+| `UMAMI_API_KEY`        | 运行时 | Umami Cloud API key（仅 Cloud 版本）                                                                             |
+| `UMAMI_USERNAME`       | 运行时 | Umami 用户名（仅自部署版本）                                                                                     |
+| `UMAMI_PASSWORD`       | 运行时 | Umami 密码（仅自部署版本）                                                                                       |
 
 ##### Umami Cloud 配置示例：
 

@@ -6,6 +6,7 @@ import {
   cacheMiddleware,
   rateLimitMiddleware,
   shieldMiddleware,
+  turnstileMiddleware,
 } from "./middlewares";
 import { createRateLimiterIdentifier } from "./helper";
 import { handleImageRequest } from "@/features/media/media.service";
@@ -83,6 +84,7 @@ app.get("/api/auth/*", baseMiddleware, (c) => {
 app.post(
   "/api/auth/*",
   baseMiddleware,
+  turnstileMiddleware,
   rateLimitMiddleware({
     capacity: 5,
     interval: "1m",

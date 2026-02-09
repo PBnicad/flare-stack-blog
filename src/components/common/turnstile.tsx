@@ -14,6 +14,25 @@ declare global {
       reset: (widgetId: string) => void;
       remove: (widgetId: string) => void;
     };
+    __turnstileToken?: string | null;
+  }
+}
+
+/**
+ * Get the current global Turnstile token for TanStack Server Functions.
+ * Used by the client-side middleware to inject X-Turnstile-Token header.
+ */
+export function getTurnstileToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.__turnstileToken || null;
+}
+
+/**
+ * Set the global Turnstile token (called internally by useTurnstile).
+ */
+function setTurnstileToken(token: string | null): void {
+  if (typeof window !== "undefined") {
+    window.__turnstileToken = token;
   }
 }
 
@@ -94,19 +113,29 @@ export function Turnstile({
 
 /**
  * Hook for using Turnstile in forms (client-side only).
- * Returns { isPending, turnstileProps } — spread turnstileProps onto <Turnstile />.
+ * Returns { isPending, token, turnstileProps } — spread turnstileProps onto <Turnstile />.
  * Use `isPending` to disable submit buttons until verification completes.
+ * Use `token` in API request headers as `X-Turnstile-Token`.
  */
 export function useTurnstile(action?: string) {
-  const [verified, setVerified] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
   const siteKey = clientEnv().VITE_TURNSTILE_SITE_KEY;
 
-  const onVerify = useCallback(() => setVerified(true), []);
-  const onExpire = useCallback(() => setVerified(false), []);
+  const onVerify = useCallback((t: string) => {
+    setToken(t);
+    setTurnstileToken(t); // Sync to global store for TanStack middleware
+  }, []);
+
+  const onExpire = useCallback(() => {
+    setToken(null);
+    setTurnstileToken(null);
+  }, []);
 
   return {
     /** Turnstile is configured but challenge not yet completed */
-    isPending: !!siteKey && !verified,
+    isPending: !!siteKey && !token,
+    /** The Turnstile token to send in X-Turnstile-Token header */
+    token,
     turnstileProps: { onVerify, onExpire, action } satisfies TurnstileProps,
   };
 }

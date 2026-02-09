@@ -20,8 +20,11 @@ export function ForgotPasswordForm() {
   const [isSent, setIsSent] = useState(false);
   const [sentEmail, setSentEmail] = useState("");
 
-  const { isPending: turnstilePending, turnstileProps } =
-    useTurnstile("forgot-password");
+  const {
+    isPending: turnstilePending,
+    token: turnstileToken,
+    turnstileProps,
+  } = useTurnstile("forgot-password");
 
   const {
     register,
@@ -35,6 +38,9 @@ export function ForgotPasswordForm() {
     const { error } = await authClient.requestPasswordReset({
       email: data.email,
       redirectTo: `${window.location.origin}/reset-link`,
+      fetchOptions: {
+        headers: { "X-Turnstile-Token": turnstileToken || "" },
+      },
     });
 
     if (error) {
