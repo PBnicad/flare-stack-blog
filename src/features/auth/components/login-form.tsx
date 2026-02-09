@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Input } from "@/components/ui/input";
+import { Turnstile, useTurnstile } from "@/components/common/turnstile";
 import { usePreviousLocation } from "@/hooks/use-previous-location";
 import { authClient } from "@/lib/auth/auth.client";
 import { AUTH_KEYS } from "@/features/auth/queries";
@@ -28,6 +29,7 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
   const navigate = useNavigate();
   const previousLocation = usePreviousLocation();
   const queryClient = useQueryClient();
+  const { isPending: turnstilePending, turnstileProps } = useTurnstile("login");
 
   const {
     register,
@@ -88,6 +90,7 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+      <Turnstile {...turnstileProps} />
       {errors.root && (
         <div className="border-l-2 border-destructive p-4 space-y-2 animate-in fade-in duration-300">
           <p className="text-[10px] font-mono text-destructive uppercase tracking-widest">
@@ -158,7 +161,7 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
 
       <button
         type="submit"
-        disabled={isSubmitting || loginStep !== "IDLE"}
+        disabled={isSubmitting || loginStep !== "IDLE" || turnstilePending}
         className="w-full py-4 bg-foreground text-background text-[10px] font-mono uppercase tracking-[0.3em] hover:opacity-80 transition-all disabled:opacity-30 flex items-center justify-center gap-3"
       >
         {loginStep === "VERIFYING" ? (

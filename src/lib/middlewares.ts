@@ -4,7 +4,7 @@ import {
   getRequestHeaders,
   setResponseHeader,
 } from "@tanstack/react-start/server";
-import type { RateLimitOptions } from "@/lib/rate-limiter";
+import type { RateLimitOptions } from "@/lib/do/rate-limiter";
 import { CACHE_CONTROL } from "@/lib/constants";
 import { getDb } from "@/lib/db";
 import { getAuth } from "@/lib/auth/auth.server";
@@ -107,7 +107,7 @@ export const createRateLimitMiddleware = (
       const session = context.session;
 
       const identifier =
-        session?.user.id || getRequestHeader("cf-connecting-ip") || "unknown";
+        getRequestHeader("cf-connecting-ip") || session?.user.id || "unknown";
       const scope = options.key || "default";
       const uniqueIdentifier = `${identifier}:${scope}`;
 

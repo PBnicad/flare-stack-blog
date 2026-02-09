@@ -144,6 +144,7 @@ src/
    - Authorization callback URL：`https://<your-domain>/api/auth/callback/github`
 6. **图片优化（可选）** — 在 Cloudflare Dashboard 中为你的域名开启 [Cloudflare Images](https://developers.cloudflare.com/images/)，每月 5000 次 unique transformations 免费额度
 7. **邮件通知（可选）** — 注册 [Resend](https://resend.com) 并绑定域名，在博客后台「设置」页面配置 API Key。每月 3000 封免费额度。配置后可启用密码登录、验证码、回复通知、找回密码等功能
+8. **Turnstile（可选）** — 在 Cloudflare Dashboard 中为你的域名开启 [Cloudflare Turnstile](https://www.cloudflare.com/products/turnstile/)，获取 Site Key，可用于防止脚本小子恶意注册、评论等
 
 ---
 
@@ -212,15 +213,16 @@ VITE_UMAMI_WEBSITE_ID=your-website-id
 
 #### GitHub Variables（可选，客户端配置）
 
-| 变量名                  | 类型   | 说明                       |
-| :---------------------- | :----- | :------------------------- |
-| `VITE_UMAMI_WEBSITE_ID` | 构建时 | Umami Website ID           |
-| `VITE_BLOG_TITLE`       | 构建时 | 博客标题                   |
-| `VITE_BLOG_NAME`        | 构建时 | 博客短名称，显示在导航栏上 |
-| `VITE_BLOG_AUTHOR`      | 构建时 | 作者名称                   |
-| `VITE_BLOG_DESCRIPTION` | 构建时 | 博客描述，显示在主页上     |
-| `VITE_BLOG_GITHUB`      | 构建时 | GitHub 主页链接            |
-| `VITE_BLOG_EMAIL`       | 构建时 | 联系邮箱                   |
+| 变量名                    | 类型   | 说明                          |
+| :------------------------ | :----- | :---------------------------- |
+| `VITE_TURNSTILE_SITE_KEY` | 构建时 | Cloudflare Turnstile 人机验证 |
+| `VITE_UMAMI_WEBSITE_ID`   | 构建时 | Umami Website ID              |
+| `VITE_BLOG_TITLE`         | 构建时 | 博客标题                      |
+| `VITE_BLOG_NAME`          | 构建时 | 博客短名称，显示在导航栏上    |
+| `VITE_BLOG_AUTHOR`        | 构建时 | 作者名称                      |
+| `VITE_BLOG_DESCRIPTION`   | 构建时 | 博客描述，显示在主页上        |
+| `VITE_BLOG_GITHUB`        | 构建时 | GitHub 主页链接               |
+| `VITE_BLOG_EMAIL`         | 构建时 | 联系邮箱                      |
 
 > **构建时变量**：在 Vite 构建时注入到客户端代码，方式二用户在 Build Variables 中配置
 

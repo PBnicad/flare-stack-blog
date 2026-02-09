@@ -30,14 +30,7 @@ export const getApprovedFriendLinksFn = createServerFn()
   });
 
 export const getMyFriendLinksFn = createServerFn()
-  .middleware([
-    createRateLimitMiddleware({
-      capacity: 30,
-      interval: "1m",
-      key: "friend-links:getMine",
-    }),
-    authMiddleware,
-  ])
+  .middleware([authMiddleware])
   .handler(async ({ context }) => {
     return await FriendLinkService.getMyFriendLinks(context);
   });
