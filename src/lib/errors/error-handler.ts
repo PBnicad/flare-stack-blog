@@ -1,18 +1,15 @@
 import { toast } from "sonner";
 import { parseRequestError } from "./request-errors";
 
-let redirectingToLogin = false;
-
 export function handleServerError(error: unknown): void {
   const parsed = parseRequestError(error);
   const { code } = parsed;
 
   switch (code) {
     case "UNAUTHENTICATED": {
-      if (typeof window !== "undefined" && !redirectingToLogin) {
-        redirectingToLogin = true;
-        window.location.href = "/login";
-      }
+      toast.error("未登录", {
+        description: "请先登录",
+      });
       break;
     }
     case "PERMISSION_DENIED": {
